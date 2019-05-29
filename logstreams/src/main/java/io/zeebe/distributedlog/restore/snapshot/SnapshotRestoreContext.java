@@ -15,13 +15,10 @@
  */
 package io.zeebe.distributedlog.restore.snapshot;
 
-import io.zeebe.logstreams.state.SnapshotReplication;
 import io.zeebe.logstreams.state.StateStorage;
 import java.util.function.Supplier;
 
 public interface SnapshotRestoreContext {
-  /** @return a SnapshotReplication which can consume replicated snapshots */
-  SnapshotReplication createSnapshotReplicationConsumer(int partitionId);
 
   /** @return state storage of processor */
   StateStorage getStateStorage(int partitionId);

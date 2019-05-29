@@ -17,10 +17,8 @@
  */
 package io.zeebe.broker.logstreams.restore;
 
-import io.atomix.cluster.messaging.ClusterEventService;
 import io.zeebe.broker.Loggers;
 import io.zeebe.broker.engine.EngineService;
-import io.zeebe.broker.engine.impl.StateReplication;
 import io.zeebe.broker.exporter.stream.ExportersState;
 import io.zeebe.db.ZeebeDb;
 import io.zeebe.distributedlog.StorageConfiguration;
@@ -30,24 +28,16 @@ import io.zeebe.engine.state.DefaultZeebeDbFactory;
 import io.zeebe.engine.state.StateStorageFactory;
 import io.zeebe.engine.state.ZeebeState;
 import io.zeebe.logstreams.spi.SnapshotController;
-import io.zeebe.logstreams.state.SnapshotReplication;
 import io.zeebe.logstreams.state.StateSnapshotController;
 import io.zeebe.logstreams.state.StateStorage;
 import java.util.function.Supplier;
 
 public class BrokerSnapshotRestoreContext implements SnapshotRestoreContext {
 
-  private final ClusterEventService eventService;
   private final String localMemberId;
 
-  public BrokerSnapshotRestoreContext(ClusterEventService eventService, String localMemberId) {
-    this.eventService = eventService;
+  public BrokerSnapshotRestoreContext(String localMemberId) {
     this.localMemberId = localMemberId;
-  }
-
-  @Override
-  public SnapshotReplication createSnapshotReplicationConsumer(int partitionId) {
-    return new StateReplication(eventService, partitionId, EngineService.PROCESSOR_NAME);
   }
 
   @Override
