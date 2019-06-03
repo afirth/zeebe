@@ -33,6 +33,7 @@ import io.zeebe.engine.processor.workflow.message.command.SubscriptionCommandSen
 import io.zeebe.engine.state.DefaultZeebeDbFactory;
 import io.zeebe.exporter.api.record.Record;
 import io.zeebe.exporter.api.record.value.DeploymentRecordValue;
+import io.zeebe.exporter.api.record.value.JobRecordValue;
 import io.zeebe.exporter.api.record.value.WorkflowInstanceCreationRecordValue;
 import io.zeebe.exporter.api.record.value.WorkflowInstanceRecordValue;
 import io.zeebe.exporter.api.record.value.deployment.ResourceType;
@@ -46,9 +47,11 @@ import io.zeebe.protocol.Protocol;
 import io.zeebe.protocol.impl.record.RecordMetadata;
 import io.zeebe.protocol.impl.record.UnifiedRecordValue;
 import io.zeebe.protocol.impl.record.value.deployment.DeploymentRecord;
+import io.zeebe.protocol.impl.record.value.job.JobRecord;
 import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceCreationRecord;
 import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceRecord;
 import io.zeebe.protocol.intent.DeploymentIntent;
+import io.zeebe.protocol.intent.JobIntent;
 import io.zeebe.protocol.intent.WorkflowInstanceCreationIntent;
 import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import io.zeebe.test.util.record.RecordingExporter;
@@ -57,6 +60,7 @@ import io.zeebe.util.ReflectUtil;
 import io.zeebe.util.buffer.BufferWriter;
 import io.zeebe.util.sched.ActorCondition;
 import io.zeebe.util.sched.ActorControl;
+import io.zeebe.util.sched.clock.ControlledActorClock;
 import io.zeebe.util.sched.future.ActorFuture;
 import io.zeebe.util.sched.future.CompletableActorFuture;
 import java.time.Duration;
@@ -140,6 +144,10 @@ public class EngineRule extends ExternalResource {
     environmentRule.getClock().addTime(duration);
   }
 
+  public ControlledActorClock getClock() {
+    return environmentRule.getClock();
+  }
+
   public Record<DeploymentRecordValue> deploy(final BpmnModelInstance modelInstance) {
     final DeploymentRecord deploymentRecord = new DeploymentRecord();
     deploymentRecord
@@ -214,6 +222,20 @@ public class EngineRule extends ExternalResource {
 
   public VariableClient variables(long scopeKey) {
     return new VariableClient(environmentRule, scopeKey);
+  }
+
+  public long completeJob(long jobKey, DirectBuffer variables) {
+    final JobRecord jobRecord = new JobRecord().setVariables(variables);
+    return environmentRule.writeCommand(jobKey, JobIntent.COMPLETE, jobRecord);
+  }
+
+  public Record<JobRecordValue> completeJobAndWait(long jobKey, DirectBuffer variables) {
+    final long position = completeJob(jobKey, variables);
+    return RecordingExporter.jobRecords()
+        .filter(r -> r.getPosition() > position)
+        .withRecordKey(jobKey)
+        .withIntent(JobIntent.COMPLETED)
+        .getFirst();
   }
 
   public JobActivationClient jobs() {
