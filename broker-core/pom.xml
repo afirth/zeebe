@@ -232,13 +232,7 @@
       <artifactId>log4j-api</artifactId>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>one.util</groupId>
-      <artifactId>streamex</artifactId>
-      <scope>test</scope>
-    </dependency>
-
+    
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpcore</artifactId>

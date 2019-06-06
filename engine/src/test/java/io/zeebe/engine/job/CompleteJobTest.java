@@ -42,10 +42,10 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class CompleteJobTest {
-  public static final String JSON_VARIABLES = "{\"foo\":\"bar\"}";
-  public static final byte[] VARIABLES_MSG_PACK = MsgPackUtil.asMsgPackReturnArray(JSON_VARIABLES);
+  private static final String JSON_VARIABLES = "{\"foo\":\"bar\"}";
+  private static final byte[] VARIABLES_MSG_PACK = MsgPackUtil.asMsgPackReturnArray(JSON_VARIABLES);
   private static final String JOB_TYPE = "foo";
-  public static final String PROCESS_ID = "process";
+  private static final String PROCESS_ID = "process";
 
   @Rule public EngineRule engineRule = new EngineRule();
 
@@ -232,7 +232,7 @@ public class CompleteJobTest {
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
     final Long jobKey = batchRecord.getValue().getJobKeys().get(0);
-    engineRule.failJob(jobKey);
+    engineRule.job().fail(jobKey);
 
     engineRule.completeJob(
         jobKey, MsgPackUtil.asMsgPack(batchRecord.getValue().getJobs().get(0).getVariables()));
