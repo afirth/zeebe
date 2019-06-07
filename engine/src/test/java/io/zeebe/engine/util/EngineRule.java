@@ -18,6 +18,7 @@
 package io.zeebe.engine.util;
 
 import static io.zeebe.engine.processor.TypedEventRegistry.EVENT_REGISTRY;
+import static io.zeebe.test.util.record.RecordingExporter.jobRecords;
 import static io.zeebe.util.buffer.BufferUtil.wrapString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -33,6 +34,7 @@ import io.zeebe.engine.processor.workflow.message.command.SubscriptionCommandSen
 import io.zeebe.engine.state.DefaultZeebeDbFactory;
 import io.zeebe.exporter.api.record.Record;
 import io.zeebe.exporter.api.record.value.DeploymentRecordValue;
+import io.zeebe.exporter.api.record.value.JobRecordValue;
 import io.zeebe.exporter.api.record.value.WorkflowInstanceRecordValue;
 import io.zeebe.exporter.api.record.value.deployment.ResourceType;
 import io.zeebe.logstreams.impl.Loggers;
@@ -48,6 +50,7 @@ import io.zeebe.protocol.impl.record.value.deployment.DeploymentRecord;
 import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceCreationRecord;
 import io.zeebe.protocol.impl.record.value.workflowinstance.WorkflowInstanceRecord;
 import io.zeebe.protocol.intent.DeploymentIntent;
+import io.zeebe.protocol.intent.JobIntent;
 import io.zeebe.protocol.intent.WorkflowInstanceCreationIntent;
 import io.zeebe.protocol.intent.WorkflowInstanceIntent;
 import io.zeebe.test.util.record.RecordingExporter;
@@ -228,6 +231,21 @@ public class EngineRule extends ExternalResource {
 
   public JobClient job() {
     return new JobClient(environmentRule);
+  }
+
+  public Record<JobRecordValue> createJob(final String type, final String processId) {
+    deploy(
+        Bpmn.createExecutableProcess(processId)
+            .startEvent("start")
+            .serviceTask("task", b -> b.zeebeTaskType(type).done())
+            .endEvent("end")
+            .done());
+    final long instanceKey = createWorkflowInstance(r -> r.setBpmnProcessId(processId));
+
+    return jobRecords(JobIntent.CREATED)
+        .withType(type)
+        .filter(r -> r.getValue().getHeaders().getWorkflowInstanceKey() == instanceKey)
+        .getFirst();
   }
 
   private class DeploymentDistributionImpl implements DeploymentDistributor {

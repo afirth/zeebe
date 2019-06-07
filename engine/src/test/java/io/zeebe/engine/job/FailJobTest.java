@@ -30,7 +30,6 @@ import io.zeebe.exporter.api.record.Record;
 import io.zeebe.exporter.api.record.RecordMetadata;
 import io.zeebe.exporter.api.record.value.JobBatchRecordValue;
 import io.zeebe.exporter.api.record.value.JobRecordValue;
-import io.zeebe.model.bpmn.Bpmn;
 import io.zeebe.protocol.RecordType;
 import io.zeebe.protocol.RejectionType;
 import io.zeebe.protocol.ValueType;
@@ -54,7 +53,7 @@ public class FailJobTest {
   @Test
   public void shouldFail() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
     final JobRecordValue job = batchRecord.getValue().getJobs().get(0);
@@ -83,7 +82,7 @@ public class FailJobTest {
   @Test
   public void shouldFailWithMessage() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
 
@@ -115,7 +114,7 @@ public class FailJobTest {
   @Test
   public void shouldFailJobAndRetry() {
     // given
-    final Record<JobRecordValue> job = createJob(JOB_TYPE);
+    final Record<JobRecordValue> job = engineRule.createJob(JOB_TYPE, PROCESS_ID);
 
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
@@ -196,7 +195,7 @@ public class FailJobTest {
   @Test
   public void shouldRejectFailIfJobAlreadyFailed() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
     final long jobKey = batchRecord.getValue().getJobKeys().get(0);
@@ -219,7 +218,7 @@ public class FailJobTest {
   @Test
   public void shouldRejectFailIfJobCreated() {
     // given
-    final Record<JobRecordValue> job = createJob(JOB_TYPE);
+    final Record<JobRecordValue> job = engineRule.createJob(JOB_TYPE, PROCESS_ID);
 
     // when
     final long position = engineRule.job().withRetries(3).fail(job.getKey());
@@ -237,7 +236,7 @@ public class FailJobTest {
   @Test
   public void shouldRejectFailIfJobCompleted() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
     final JobRecordValue job = batchRecord.getValue().getJobs().get(0);
@@ -259,21 +258,5 @@ public class FailJobTest {
         .hasRecordType(RecordType.COMMAND_REJECTION)
         .hasRejectionType(RejectionType.NOT_FOUND)
         .hasIntent(FAIL);
-  }
-
-  private Record<JobRecordValue> createJob(final String type) {
-    engineRule.deploy(
-        Bpmn.createExecutableProcess(PROCESS_ID)
-            .startEvent("start")
-            .serviceTask("task", b -> b.zeebeTaskType(type).done())
-            .endEvent("end")
-            .done());
-
-    final long instanceKey = engineRule.createWorkflowInstance(r -> r.setBpmnProcessId(PROCESS_ID));
-
-    return jobRecords(JobIntent.CREATED)
-        .withType(type)
-        .filter(r -> r.getValue().getHeaders().getWorkflowInstanceKey() == instanceKey)
-        .getFirst();
   }
 }

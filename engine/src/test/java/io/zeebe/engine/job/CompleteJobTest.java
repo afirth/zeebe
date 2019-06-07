@@ -28,7 +28,6 @@ import io.zeebe.exporter.api.record.Record;
 import io.zeebe.exporter.api.record.RecordMetadata;
 import io.zeebe.exporter.api.record.value.JobBatchRecordValue;
 import io.zeebe.exporter.api.record.value.JobRecordValue;
-import io.zeebe.model.bpmn.Bpmn;
 import io.zeebe.msgpack.spec.MsgPackHelper;
 import io.zeebe.protocol.RecordType;
 import io.zeebe.protocol.RejectionType;
@@ -52,7 +51,7 @@ public class CompleteJobTest {
   @Test
   public void shouldCompleteJob() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
     final JobRecordValue job = batchRecord.getValue().getJobs().get(0);
@@ -98,7 +97,7 @@ public class CompleteJobTest {
   @Test
   public void shouldCompleteJobWithVariables() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
 
@@ -120,7 +119,7 @@ public class CompleteJobTest {
   @Test
   public void shouldCompleteJobWithNilVariables() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
 
@@ -142,7 +141,7 @@ public class CompleteJobTest {
   @Test
   public void shouldCompleteJobWithZeroLengthVariables() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
 
@@ -164,7 +163,7 @@ public class CompleteJobTest {
   @Test
   public void shouldCompleteJobWithNoVariables() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
     final Record<JobRecordValue> activated = jobRecords(JobIntent.ACTIVATED).getFirst();
@@ -185,7 +184,7 @@ public class CompleteJobTest {
   @Test
   public void shouldThrowExceptionOnCompletionIfVariablesAreInvalid() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
 
@@ -210,7 +209,7 @@ public class CompleteJobTest {
   @Test
   public void shouldRejectCompletionIfJobIsCompleted() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(JOB_TYPE).activateAndWait();
 
@@ -235,7 +234,7 @@ public class CompleteJobTest {
   @Test
   public void shouldRejectCompletionIfJobIsFailed() {
     // given
-    createJob(JOB_TYPE);
+    engineRule.createJob(JOB_TYPE, PROCESS_ID);
 
     // when
     final Record<JobBatchRecordValue> batchRecord =
@@ -255,21 +254,5 @@ public class CompleteJobTest {
     Assertions.assertThat(rejection.getMetadata())
         .hasRejectionType(RejectionType.INVALID_STATE)
         .hasIntent(JobIntent.COMPLETE);
-  }
-
-  private Record<JobRecordValue> createJob(final String type) {
-    engineRule.deploy(
-        Bpmn.createExecutableProcess(PROCESS_ID)
-            .startEvent("start")
-            .serviceTask("task", b -> b.zeebeTaskType(type).done())
-            .endEvent("end")
-            .done());
-
-    final long instanceKey = engineRule.createWorkflowInstance(r -> r.setBpmnProcessId(PROCESS_ID));
-
-    return jobRecords(JobIntent.CREATED)
-        .withType(type)
-        .filter(r -> r.getValue().getHeaders().getWorkflowInstanceKey() == instanceKey)
-        .getFirst();
   }
 }

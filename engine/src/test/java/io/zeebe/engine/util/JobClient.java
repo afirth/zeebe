@@ -19,6 +19,7 @@ package io.zeebe.engine.util;
 
 import static io.zeebe.protocol.intent.JobIntent.COMPLETED;
 import static io.zeebe.protocol.intent.JobIntent.FAILED;
+import static io.zeebe.protocol.intent.JobIntent.RETRIES_UPDATED;
 
 import io.zeebe.exporter.api.record.Record;
 import io.zeebe.exporter.api.record.value.JobRecordValue;
@@ -117,5 +118,16 @@ public class JobClient {
 
   public long fail(long jobKey) {
     return environmentRule.writeCommand(jobKey, JobIntent.FAIL, jobRecord);
+  }
+
+  public Record<JobRecordValue> updateRetriesAndWait(long jobKey) {
+    final long position = updateRetries(jobKey);
+    return RecordingExporter.jobRecords(RETRIES_UPDATED)
+        .withSourceRecordPosition(position)
+        .getFirst();
+  }
+
+  public long updateRetries(long jobKey) {
+    return environmentRule.writeCommand(jobKey, JobIntent.UPDATE_RETRIES, jobRecord);
   }
 }

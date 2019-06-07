@@ -30,7 +30,6 @@ import io.zeebe.exporter.api.record.Record;
 import io.zeebe.exporter.api.record.RecordMetadata;
 import io.zeebe.exporter.api.record.value.JobBatchRecordValue;
 import io.zeebe.exporter.api.record.value.JobRecordValue;
-import io.zeebe.model.bpmn.Bpmn;
 import io.zeebe.protocol.intent.JobBatchIntent;
 import io.zeebe.protocol.intent.JobIntent;
 import io.zeebe.test.util.record.RecordingExporter;
@@ -52,7 +51,7 @@ public class JobTimeOutTest {
     final Duration timeout = Duration.ofSeconds(60);
     final String jobType = "jobType";
 
-    createJob(jobType);
+    engineRule.createJob(jobType, PROCESS_ID);
 
     engineRule.jobs().withType(jobType).withTimeout(timeout.toMillis()).activate();
     jobRecords(ACTIVATED).getFirst();
@@ -71,7 +70,7 @@ public class JobTimeOutTest {
     final Duration timeout = Duration.ofSeconds(60);
     final String jobType = "jobType";
 
-    createJob(jobType);
+    engineRule.createJob(jobType, PROCESS_ID);
 
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(jobType).withTimeout(timeout.toMillis()).activateAndWait();
@@ -91,7 +90,7 @@ public class JobTimeOutTest {
     final Duration timeout = Duration.ofSeconds(60);
     final String jobType = "jobType";
 
-    createJob(jobType);
+    engineRule.createJob(jobType, PROCESS_ID);
 
     final Record<JobBatchRecordValue> batchRecord =
         engineRule.jobs().withType(jobType).withTimeout(timeout.toMillis()).activateAndWait();
@@ -110,7 +109,7 @@ public class JobTimeOutTest {
   public void shouldTimeOutJob() {
     // given
     final String jobType = "foo";
-    final long jobKey1 = createJob(jobType);
+    final long jobKey1 = engineRule.createJob(jobType, PROCESS_ID).getKey();
     final long timeout = 10L;
 
     engineRule.jobs().withType(jobType).withTimeout(timeout).activateAndWait();
@@ -141,7 +140,7 @@ public class JobTimeOutTest {
   public void shouldSetCorrectSourcePositionAfterJobTimeOut() {
     // given
     final String jobType = "foo";
-    createJob(jobType);
+    engineRule.createJob(jobType, PROCESS_ID);
     final long timeout = 10L;
     engineRule.jobs().withType(jobType).withTimeout(timeout).activateAndWait();
     engineRule.getClock().addTime(JobTimeoutTrigger.TIME_OUT_POLLING_INTERVAL);
@@ -176,8 +175,8 @@ public class JobTimeOutTest {
   public void shouldExpireMultipleActivatedJobsAtOnce() {
     // given
     final String jobType = "foo";
-    final long jobKey1 = createJob(jobType);
-    final long jobKey2 = createJob(jobType);
+    final long jobKey1 = engineRule.createJob(jobType, PROCESS_ID).getKey();
+    final long jobKey2 = engineRule.createJob(jobType, PROCESS_ID).getKey();
     final long timeout = 10L;
 
     engineRule.jobs().withType(jobType).withTimeout(timeout).activateAndWait();
@@ -203,27 +202,6 @@ public class JobTimeOutTest {
     assertThat(expiredEvents)
         .extracting(Record::getKey)
         .containsExactlyInAnyOrder(jobKey1, jobKey2);
-  }
-
-  //  private long createJob(final String type) {
-  //    return apiRule.partitionClient().createJob(type);
-  //  }
-
-  private long createJob(final String type) {
-    engineRule.deploy(
-        Bpmn.createExecutableProcess(PROCESS_ID)
-            .startEvent("start")
-            .serviceTask("task", b -> b.zeebeTaskType(type).done())
-            .endEvent("end")
-            .done());
-
-    final long instanceKey = engineRule.createWorkflowInstance(r -> r.setBpmnProcessId(PROCESS_ID));
-
-    return jobRecords(JobIntent.CREATED)
-        .withType(type)
-        .filter(r -> r.getValue().getHeaders().getWorkflowInstanceKey() == instanceKey)
-        .getFirst()
-        .getKey();
   }
 
   private void assertNoMoreJobsReceived(JobIntent lastIntent) {
